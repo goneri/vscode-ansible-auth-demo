@@ -92,17 +92,38 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        console.log(session.accessToken);
-        const response = await fetch(`${lightspeedURL}/api/v0/me`, {
+        const responseMe = await fetch(`${lightspeedURL}/api/v0/me`, {
           headers: {
             Authorization: `Bearer ${session.accessToken}`,
           },
         });
 
-        const userMe = (await response.json()) as ILightspeedMe;
+        const responseToken = await fetch(`${lightspeedURL}/api/v1/me/token/`, {
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+        });
+
+        const data = await responseToken.json();
+        const wcaEndpoint = data.inference_url;
+        const wcaToken = data.bearer_token.access_token;
+
+        const responseWCASpaces = await fetch(`${wcaEndpoint}/v2/spaces`, {
+          headers: {
+            Authorization: `Bearer ${wcaToken}`
+          }
+        });
+        const spaces = await responseWCASpaces.json();
+        const spaceNames = spaces.resources.map((r) => r.entity.name);
+
+        const userMe = (await responseMe.json()) as ILightspeedMe;
         await vscode.window.showInformationMessage(
-          `vscode-ansible-auth-demo - Welcome ${userMe.given_name}!`
+          `vscode-ansible-auth-demo - Welcome ${userMe.given_name}\nYou have access to the following WCA spaces:\n ${spaceNames}!`
+          , { modal: true }
         );
+
+
+
       }
     )
   );
